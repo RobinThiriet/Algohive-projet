@@ -1,0 +1,288 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-secrets
+  namespace: algohive
+type: Opaque
+stringData:
+  KC_DB_USERNAME: "keycloak"
+  KC_DB_PASSWORD: "ChangeMeKeycloakDb123!"
+  KC_BOOTSTRAP_ADMIN_USERNAME: "admin"
+  KC_BOOTSTRAP_ADMIN_PASSWORD: "ChangeMeKeycloakAdmin123!"
+  GRAFANA_OAUTH_CLIENT_SECRET: "ChangeMeGrafanaOAuth123!"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-import
+  namespace: algohive
+data:
+  algohive-realm.json: |
+    {
+      "realm": "algohive",
+      "enabled": true,
+      "displayName": "AlgoHive",
+      "registrationAllowed": false,
+      "resetPasswordAllowed": true,
+      "roles": {
+        "realm": [
+          { "name": "platform-admin" },
+          { "name": "manager" },
+          { "name": "user" }
+        ]
+      },
+      "groups": [
+        {
+          "name": "admins",
+          "realmRoles": ["platform-admin"]
+        },
+        {
+          "name": "managers",
+          "realmRoles": ["manager"]
+        },
+        {
+          "name": "employees",
+          "realmRoles": ["user"]
+        }
+      ],
+      "clients": [
+        {
+          "clientId": "grafana-oauth",
+          "name": "Grafana OAuth",
+          "enabled": true,
+          "protocol": "openid-connect",
+          "publicClient": false,
+          "secret": "ChangeMeGrafanaOAuth123!",
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": false,
+          "serviceAccountsEnabled": false,
+          "redirectUris": [
+            "http://grafana.algohive.local/login/generic_oauth"
+          ],
+          "webOrigins": [
+            "http://grafana.algohive.local"
+          ],
+          "attributes": {
+            "post.logout.redirect.uris": "http://grafana.algohive.local",
+            "pkce.code.challenge.method": "S256"
+          }
+        },
+        {
+          "clientId": "algohive-ui",
+          "name": "AlgoHive UI",
+          "enabled": true,
+          "protocol": "openid-connect",
+          "publicClient": true,
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": false,
+          "redirectUris": [
+            "http://algohive.local/*"
+          ],
+          "webOrigins": [
+            "http://algohive.local"
+          ]
+        }
+      ],
+      "users": [
+        {
+          "username": "grafana-admin",
+          "enabled": true,
+          "emailVerified": true,
+          "firstName": "Grafana",
+          "lastName": "Admin",
+          "email": "grafana-admin@algohive.local",
+          "groups": ["/admins"],
+          "credentials": [
+            {
+              "type": "password",
+              "value": "ChangeMeGrafanaUser123!",
+              "temporary": false
+            }
+          ]
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak-postgres
+  namespace: algohive
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak-postgres
+  template:
+    metadata:
+      labels:
+        app: keycloak-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: keycloak
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secrets
+                  key: KC_DB_USERNAME
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secrets
+                  key: KC_DB_PASSWORD
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U keycloak -d keycloak"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U keycloak -d keycloak"]
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-postgres
+  namespace: algohive
+spec:
+  selector:
+    app: keycloak-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: algohive
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      containers:
+        - name: keycloak
+          image: algohive-keycloak:kind
+          imagePullPolicy: IfNotPresent
+          args:
+            - start
+            - --optimized
+            - --import-realm
+            - --hostname=keycloak.algohive.local
+            - --hostname-strict=false
+            - --http-enabled=true
+            - --http-port=8080
+            - --proxy-headers=xforwarded
+          ports:
+            - containerPort: 8080
+            - containerPort: 9000
+          env:
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secrets
+                  key: KC_BOOTSTRAP_ADMIN_USERNAME
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secrets
+                  key: KC_BOOTSTRAP_ADMIN_PASSWORD
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_URL
+              value: jdbc:postgresql://keycloak-postgres:5432/keycloak
+            - name: KC_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secrets
+                  key: KC_DB_USERNAME
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secrets
+                  key: KC_DB_PASSWORD
+            - name: KC_DB_SCHEMA
+              value: public
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+            - name: KC_METRICS_ENABLED
+              value: "true"
+            - name: KC_HTTP_MANAGEMENT_PORT
+              value: "9000"
+            - name: KC_HTTP_MANAGEMENT_SCHEME
+              value: "http"
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 9000
+            initialDelaySeconds: 25
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 9000
+            initialDelaySeconds: 40
+            periodSeconds: 20
+          volumeMounts:
+            - name: realm-import
+              mountPath: /opt/keycloak/data/import
+      volumes:
+        - name: realm-import
+          configMap:
+            name: keycloak-realm-import
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: algohive
+spec:
+  selector:
+    app: keycloak
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: management
+      port: 9000
+      targetPort: 9000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak
+  namespace: algohive
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: keycloak.algohive.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  number: 8080

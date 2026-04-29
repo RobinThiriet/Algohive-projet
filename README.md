@@ -16,6 +16,8 @@ Cette base sert à présenter une solution cohérente pour:
 - centraliser l'identité avec `Keycloak`
 - superviser l'ensemble avec `Prometheus` et `Grafana`
 
+Le dépôt contient maintenant aussi les manifests et scripts de déploiement dans [deploy/README.md](deploy/README.md).
+
 ## Architecture
 
 Le schéma détaillé est disponible dans [docs/architecture.md](docs/architecture.md).

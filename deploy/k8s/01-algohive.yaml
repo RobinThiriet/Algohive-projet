@@ -1,0 +1,285 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: algohive-api-config
+  namespace: algohive
+data:
+  API_PORT: "8080"
+  ENV: "production"
+  CLIENT_URL: "http://algohive.local"
+  ALLOWED_ORIGINS: "http://algohive.local"
+  DEFAULT_PASSWORD: "ChangeMeDefaultUser123!"
+  BEE_APIS: "http://bee-api.local"
+  POSTGRES_HOST: "algohive-postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "algohive"
+  CACHE_HOST: "algohive-redis"
+  CACHE_PORT: "6379"
+  CACHE_DB: "0"
+  CACHE_EXPI_MIN: "5"
+  JWT_EXPIRATION: "86400"
+  MAIL_HOST: "mailhog"
+  MAIL_PORT: "1025"
+  LAN_MODE: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: algohive-api-secrets
+  namespace: algohive
+type: Opaque
+stringData:
+  POSTGRES_USER: "algohive"
+  POSTGRES_PASSWORD: "ChangeMeAlgoHiveDb123!"
+  CACHE_PASSWORD: ""
+  JWT_SECRET: "ChangeMeAlgoHiveJwtSecret123!"
+  MAIL_USERNAME: "noreply@algohive.local"
+  MAIL_PASSWORD: "ChangeMeMailPassword123!"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: algohive-postgres
+  namespace: algohive
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: algohive-postgres
+  template:
+    metadata:
+      labels:
+        app: algohive-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: algohive
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: algohive-api-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: algohive-api-secrets
+                  key: POSTGRES_PASSWORD
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U algohive -d algohive"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U algohive -d algohive"]
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: algohive-postgres
+  namespace: algohive
+spec:
+  selector:
+    app: algohive-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: algohive-redis
+  namespace: algohive
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: algohive-redis
+  template:
+    metadata:
+      labels:
+        app: algohive-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: algohive-redis
+  namespace: algohive
+spec:
+  selector:
+    app: algohive-redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: algohive-api
+  namespace: algohive
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: algohive-api
+  template:
+    metadata:
+      labels:
+        app: algohive-api
+    spec:
+      containers:
+        - name: api
+          image: algohive-api:kind
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: algohive-api-config
+            - secretRef:
+                name: algohive-api-secrets
+          readinessProbe:
+            httpGet:
+              path: /api/v1/ping
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/ping
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: algohive-api
+  namespace: algohive
+spec:
+  selector:
+    app: algohive-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: algohive-client
+  namespace: algohive
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: algohive-client
+  template:
+    metadata:
+      labels:
+        app: algohive-client
+    spec:
+      containers:
+        - name: client
+          image: algohive-client:kind
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: algohive-client
+  namespace: algohive
+spec:
+  selector:
+    app: algohive-client
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: algohive
+  namespace: algohive
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: algohive.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: algohive-api
+                port:
+                  number: 8080
+          - path: /swagger
+            pathType: Prefix
+            backend:
+              service:
+                name: algohive-api
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: algohive-client
+                port:
+                  number: 80
