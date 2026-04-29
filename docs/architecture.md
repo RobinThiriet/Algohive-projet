@@ -33,6 +33,7 @@ flowchart TB
         subgraph MonitoringNS[Namespace monitoring]
             PROM[Prometheus]
             GRAF[Grafana]
+            KVIEW[KubeView]
             REXP[Redis Exporter]
             PEXP1[Postgres Exporter AlgoHive]
             PEXP2[Postgres Exporter Keycloak]
@@ -46,6 +47,7 @@ flowchart TB
     ING --> KC
     ING --> GRAF
     ING --> PROM
+    ING --> KVIEW
 
     WEB --> API
     API --> PG1
@@ -99,6 +101,7 @@ flowchart TB
 
 - collecte de métriques
 - visualisation
+- visualisation de cluster avec `KubeView`
 - exporters de dépendances
 
 ## Hôtes locaux recommandés
@@ -108,6 +111,7 @@ flowchart TB
 127.0.0.1 keycloak.algohive.local
 127.0.0.1 grafana.algohive.local
 127.0.0.1 prometheus.algohive.local
+127.0.0.1 kubeview.algohive.local
 ```
 
 ## Choix d'architecture

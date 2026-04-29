@@ -9,6 +9,7 @@ Documentation d'architecture et de déploiement d'une plateforme `AlgoHive` loca
 - `Keycloak`
 - `Prometheus`
 - `Grafana`
+- `KubeView`
 
 Cette base sert à présenter une solution cohérente pour:
 
@@ -33,6 +34,7 @@ flowchart LR
     ING --> KC[Keycloak]
     ING --> GRAF[Grafana]
     ING --> PROM[Prometheus]
+    ING --> KVIEW[KubeView]
 
     WEB --> API
     API --> PG1[(PostgreSQL AlgoHive)]
@@ -92,6 +94,12 @@ flowchart LR
 - visualisation centralisée
 - datasource `Prometheus` préconfigurée
 - SSO `Keycloak` préconfiguré
+
+### KubeView
+
+- vue graphique du cluster Kubernetes
+- accès en lecture seule via un service account dédié
+- exposé via `Ingress`
 
 ## Déploiement local sur kind
 

@@ -7,6 +7,7 @@ Ce dépôt contient la base d'infrastructure nécessaire pour lancer `AlgoHive` 
 - `Keycloak`
 - `Prometheus`
 - `Grafana`
+- `KubeView`
 
 ## Contenu
 
@@ -40,3 +41,7 @@ export ALGOHIVE_CLIENT_DIR=/chemin/vers/AlgoHive-Client
 export ALGOHIVE_KEYCLOAK_DIR=/chemin/vers/Keycloak
 ./deploy/bootstrap-kind.sh
 ```
+
+## URL supplémentaire
+
+- `http://kubeview.algohive.local`

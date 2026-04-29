@@ -192,6 +192,119 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: kubeview
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubeview
+  template:
+    metadata:
+      labels:
+        app: kubeview
+    spec:
+      serviceAccountName: kubeview
+      containers:
+        - name: kubeview
+          image: ghcr.io/benc-uk/kubeview:2.2.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: PORT
+              value: "8000"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubeview
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubeview-readonly
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "namespaces", "services", "configmaps", "secrets", "endpoints", "events", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubeview-readonly
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubeview-readonly
+subjects:
+  - kind: ServiceAccount
+    name: kubeview
+    namespace: monitoring
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubeview
+  namespace: monitoring
+spec:
+  selector:
+    app: kubeview
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kubeview
+  namespace: monitoring
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: kubeview.algohive.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kubeview
+                port:
+                  number: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: prometheus
   namespace: monitoring
 spec:

@@ -11,6 +11,7 @@ Mettre en place une plateforme `AlgoHive` locale sur `kind` avec:
 - `Keycloak`
 - `Prometheus`
 - `Grafana`
+- `KubeView`
 
 Cette documentation est volontairement très guidée.
 
@@ -23,6 +24,7 @@ Cette documentation est volontairement très guidée.
 - `http://keycloak.algohive.local/admin`
 - `http://grafana.algohive.local`
 - `http://prometheus.algohive.local`
+- `http://kubeview.algohive.local`
 
 ## Étape 1. Préparer la machine
 
@@ -279,6 +281,7 @@ Ajouter ces lignes:
 127.0.0.1 keycloak.algohive.local
 127.0.0.1 grafana.algohive.local
 127.0.0.1 prometheus.algohive.local
+127.0.0.1 kubeview.algohive.local
 ```
 
 Sur Linux ou macOS:

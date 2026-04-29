@@ -13,6 +13,7 @@ Déployer une plateforme locale `AlgoHive` avec IAM et supervision sur un cluste
 - `Keycloak`
 - `Prometheus`
 - `Grafana`
+- `KubeView`
 
 ## Pré-requis
 
@@ -85,6 +86,7 @@ kubectl apply -k deploy/k8s
 127.0.0.1 keycloak.algohive.local
 127.0.0.1 grafana.algohive.local
 127.0.0.1 prometheus.algohive.local
+127.0.0.1 kubeview.algohive.local
 ```
 
 ## URLs attendues
@@ -94,6 +96,7 @@ kubectl apply -k deploy/k8s
 - `http://keycloak.algohive.local/admin`
 - `http://grafana.algohive.local`
 - `http://prometheus.algohive.local`
+- `http://kubeview.algohive.local`
 
 ## Comptes de démonstration
 

@@ -109,6 +109,7 @@ Ajoutez ces entrees dans /etc/hosts si ce n'est pas deja fait:
 127.0.0.1 keycloak.algohive.local
 127.0.0.1 grafana.algohive.local
 127.0.0.1 prometheus.algohive.local
+127.0.0.1 kubeview.algohive.local
 
 Acces:
 - http://algohive.local
@@ -116,4 +117,5 @@ Acces:
 - http://keycloak.algohive.local/admin
 - http://grafana.algohive.local
 - http://prometheus.algohive.local
+- http://kubeview.algohive.local
 EOF
