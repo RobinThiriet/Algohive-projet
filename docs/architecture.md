@@ -14,7 +14,7 @@ Cette architecture propose une plateforme locale `Kubernetes` pour `AlgoHive`, e
 flowchart TB
     subgraph UserAccess[Acces utilisateur]
         U1[Utilisateur]
-        DNS[/etc/hosts vers 127.0.0.1]
+        DNS["/etc/hosts vers 127.0.0.1"]
         U1 --> DNS
     end
 
