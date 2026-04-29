@@ -95,6 +95,8 @@ flowchart LR
 
 Le guide pas à pas est disponible dans [docs/deploiement-kind.md](docs/deploiement-kind.md).
 
+Une version plus guidée, orientée exécution étape par étape, est disponible dans [docs/pas-a-pas.md](docs/pas-a-pas.md).
+
 ## Limites actuelles
 
 - stockage local volatile
